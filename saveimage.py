@@ -19,7 +19,6 @@ def render():
     arr = np.reshape(arr, (height, width))
     image = Image.fromarray(arr, mode='L')
     image.save(f'{sys.argv[2]}')
-    os.system(f'hogedraw {sys.argv[2]}')
 
 if __name__ == '__main__':
     render()
