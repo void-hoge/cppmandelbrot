@@ -1,6 +1,8 @@
 # CPPMANDELBROT
 - Mandelbrot set renderer accelerated with AVX and OpenMP in C++.
 
+![sample](samples/mandelbrot.gif)
+
 ## Build and Execution
 ```
 $ mkdir build
