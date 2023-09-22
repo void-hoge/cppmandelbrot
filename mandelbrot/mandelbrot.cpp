@@ -226,12 +226,12 @@ void calc_submandelbrot_boundary(
 	constexpr std::int32_t bound_mask[8] = {
 		//76543210
 		0b00001010, // upper left,  upper or left
-		0b00011000, // upper,       left  or right
+		0b00011101, // upper,       left  or right or upper left  or upper right
 		0b00010010, // upper right, upper or right
-		0b01000010, // left,        upper or lower
-		0b01000010, // right,       upper or lower
+		0b01100011, // left,        upper or lower or upper left  or lower left
+		0b11000110, // right,       upper or lower or upper right or lower right
 		0b01001000, // lower left,  lower or left
-		0b00011000, // lower,       left  or right
+		0b10111000, // lower,       left  or right or lower left  or lower right
 		0b01010000  // lower right, lower or right
 	};
 	while (que.size()) {
