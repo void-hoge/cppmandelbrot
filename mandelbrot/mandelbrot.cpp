@@ -447,7 +447,15 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
 					std::uint32_t r = row - rows[i];
 					std::uint32_t c = col - cols[j];
 					std::uint32_t w = cols[j + 1] - cols[j] + 1;
+#if defined(FILL_COUNTMAP)
+					if (countmaps[i][j][r * w + c] == init) {
+						result[row][col] = result[row][col - 1];
+					}else {
+						result[row][col] = countmaps[i][j][r * w + c];
+					}
+#else
 					result[row][col] = countmaps[i][j][r * w + c];
+#endif
 				}
 			}
 			std::free(countmaps[i][j]);

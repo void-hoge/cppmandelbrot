@@ -17,6 +17,8 @@
 #include <immintrin.h>
 #endif
 
+#define FILL_COUNTMAP
+
 constexpr std::int32_t init = -1;
 constexpr std::int32_t queued = -2;
 
