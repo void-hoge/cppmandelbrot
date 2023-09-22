@@ -35,11 +35,8 @@ __m256i mandelbrot_avx(
 	__m256i cnt  = _mm256_setzero_si256();
 	for (std::int32_t i = 0; i < iter_max; i++) {
 		__m256d tx = _mm256_sub_pd(sqx, sqy);
-		__m256d ty = _mm256_mul_pd(
-			_mm256_mul_pd(x, y),
-			_mm256_set1_pd(2.0));
+		y = _mm256_fmadd_pd(_mm256_mul_pd(x, y), _mm256_set1_pd(2.0), b);
 		x = _mm256_add_pd(tx, a);
-		y = _mm256_add_pd(ty, b);
 		sqx = _mm256_mul_pd(x, x);
 		sqy = _mm256_mul_pd(y, y);
 		__m256d cmp       = _mm256_cmp_pd(_mm256_add_pd(sqx, sqy), _mm256_set1_pd(4.0), _CMP_LT_OQ);
