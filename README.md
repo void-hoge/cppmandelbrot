@@ -1,7 +1,8 @@
 # CPPMANDELBROT
 - Mandelbrot set renderer accelerated with AVX and OpenMP in C++.
 
-![sample](samples/mandelbrot.gif)
+![mandelbrot](samples/mandelbrot.gif)
+![buddhabrot](samples/buddhabrot.png)
 
 ## Build and Execution
 ```
@@ -9,7 +10,9 @@ $ mkdir build
 $ cd build
 $ cmake ..
 $ make
-$ ../zoom.py cppmandelbrot # Generate images included in samples.
+$ ../zoom.py mandel # Generate images included in samples.
+$ ./buddha > countmap
+$ ../saveimage.py countmap buddhabrot.png
 ```
 
 ## Algorithms
@@ -35,10 +38,16 @@ $ ../zoom.py cppmandelbrot # Generate images included in samples.
   - To achieve this, the rendering region is divided vertically and horizontally, and the above algorithm is executed.
 - This algorithm is implemented as `calc_mandelbrot_boundary`, `calc_submandelbrot_boundary` and `pop4elms`.
 
+## Buddhabrot
+- Buddhabrot is a probability distribution of the trajectories of points that do not belong to the Mandelbrot set.
+- To save computation for points belonging to the set, the Mandelbrot set is precomputed using the algorithm mentioned above.
+  - Specifically, generate complex numbers randomly, and if the complex numbers at corners of that pixel belong to the Mandelbrot set, skip the computation.
+
 ## References
 - https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set
 - https://geocities.restorativland.org/CapeCanaveral/5003/mandel.htm
 - https://github.com/shapoco/accelbrot
+- https://en.wikipedia.org/wiki/Buddhabrot
 
 ## Author
 - Mugi Noda (void-hoge)
