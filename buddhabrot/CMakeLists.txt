@@ -1,4 +1,2 @@
 cmake_minimum_required(VERSION 3.10)
-
-add_library(buddhabrot STATIC buddhabrot.cpp)
-
+add_library(buddhabrot STATIC buddhabrot.cpp ../mandelbrot/mandelbrot.cpp)

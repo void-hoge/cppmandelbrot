@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 
 def render():
-    cmd = f'echo "3.2138760885179925e-07" | ./{sys.argv[1]}'
+    cmd = f'cat {sys.argv[1]}'
     output = os.popen(cmd).read()
     print('converting to image')
     lines = output.strip().split('\n')

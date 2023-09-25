@@ -12,5 +12,8 @@ endif()
 
 add_subdirectory(mandelbrot)
 add_subdirectory(buddhabrot)
-add_executable(cppmandelbrot main.cpp)
-target_link_libraries(cppmandelbrot mandelbrot buddhabrot)
+add_executable(mandel test/main_mandelbrot.cpp)
+target_link_libraries(mandel mandelbrot)
+
+add_executable(buddha test/main_buddhabrot.cpp)
+target_link_libraries(buddha buddhabrot)
