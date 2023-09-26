@@ -249,7 +249,7 @@ void calc_submandelbrot_boundary(
 			_mm256_castsi256_ps(notbound));
 		for (std::uint32_t i = 0; i < 8; i++) {
 			if (is_init_shrink & (1 << i)) {
-				if ((bound_shrink & bound_mask[j])) {
+				if (bound_shrink & bound_mask[i]) {
 					std::uint32_t p = pos + offset[i];
 					std::uint16_t r = p / mapwidth;
 					std::uint16_t c = p % mapwidth;
