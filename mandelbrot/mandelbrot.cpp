@@ -1,16 +1,17 @@
 #include "mandelbrot.hpp"
 
 // Escape time engine (scalar version)
+template<typename T>
 std::uint32_t mandelbrot(
-	const double a, const double b,
+	const T& a, const T& b,
 	const std::int32_t iter_max) {
 
-	double x   = 0;
-	double y   = 0;
-	double sqx = 0;
-	double sqy = 0;
+	T x   = 0;
+	T y   = 0;
+	T sqx = 0;
+	T sqy = 0;
 	for (std::int32_t i = 0; i < iter_max; i++) {
-		double tx = sqx - sqy;
+		T tx = sqx - sqy;
 		y   = x * y * 2.0 + b;
 		x   = tx + a;
 		sqx = x * x;
@@ -48,10 +49,11 @@ __m256i mandelbrot_avx(
 #endif
 
 // Naive algorithm: compute escape times for each pixel
+template<typename T>
 std::vector<std::vector<std::int32_t>> calc_mandelbrot_countmap(
 	const std::uint16_t width, const std::uint16_t height,
-	const double real_min, const double real_max,
-	const double imag_min, const double imag_max,
+	const T& real_min, const T& real_max,
+	const T& imag_min, const T& imag_max,
 	const std::int32_t iter_max) {
 
 	std::vector<std::vector<std::int32_t>> countmap(
@@ -61,7 +63,8 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_countmap(
 	const double real_unit  = real_range / height;
 	const double imag_unit  = imag_range / width;
 	auto start = std::chrono::system_clock::now();
-#if defined(ENABLE_AVX) and defined(__AVX2__)
+#if defined(ENABLE_AVX) and defined(__AVX2__) and not defined(ENABLE_GMP)
+	static_assert(std::is_same<T, double>::value);
 #pragma omp parallel for
 	for (std::uint32_t row = 0; row < height; row++) {
 		for (std::uint32_t col = 0; col < width; col += 4) {
@@ -85,8 +88,8 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_countmap(
 #pragma omp parallel for
 	for (std::uint16_t row = 0; row < height; row++) {
 		for (std::uint16_t col = 0; col < width; col++) {
-			double real = real_min + real_unit * row;
-			double imag = imag_min + imag_unit * col;
+			T real = real_min + real_unit * row;
+			T imag = imag_min + imag_unit * col;
 			countmap[row][col] = mandelbrot(real, imag, iter_max);
 		}
 	}
@@ -132,11 +135,12 @@ std::uint32_t pop4elms(
 // The escape times of perimeter given as UPPER, LOWER, LEFT and RIGHT.
 // The result is stored into the COUNRMAP.
 // COUNTMAP is allocated in caller side.
+template<typename T>
 void calc_submandelbrot_boundary(
 	const std::uint16_t width, const std::uint16_t height,
 	const std::int32_t *upper, const std::int32_t *lower, const std::int32_t *left, const std::int32_t *right,
-	const double real_min, const double real_unit,
-	const double imag_min, const double imag_unit,
+	const T& real_min, const T& real_unit,
+	const T& imag_min, const T& imag_unit,
 	const std::int32_t iter_max, std::int32_t *countmap) {
 
 	const std::uint32_t mapwidth  = width + 1;
@@ -192,10 +196,6 @@ void calc_submandelbrot_boundary(
 			countmap[(row + 1) * mapwidth + width - 1] = queued;
 		}
 	}
-#if defined(ENABLE_AVX) and defined(__AVX2__)
-	alignas(32) std::uint64_t store[4];
-	__m256d real, imag;
-	std::array<std::uint16_t, 4> rpos, cpos;
 	// offset of eight-neighbours
 	// 0 1 2
 	// 3 P 4
@@ -210,12 +210,6 @@ void calc_submandelbrot_boundary(
 		(std::int32_t)mapwidth,      // lower
 		(std::int32_t)mapwidth + 1   // lower right
 	};
-	// index of the gather instruction
-	const __m256i vecoffset = _mm256_loadu_si256((__m256i *)offset);
-	// 0 1 2
-	// 3 P 4
-	// 5 6 7
-	// push upper left(0) if 1 and P or 3 and P are different.
 	constexpr std::int32_t bound_mask[8] = {
 		//76543210
 		0b00001010, // upper left,  upper or left
@@ -227,6 +221,51 @@ void calc_submandelbrot_boundary(
 		0b10111000, // lower,       left  or right or lower left  or lower right
 		0b01010000  // lower right, lower or right
 	};
+#if defined(ENABLE_AVX) and defined(__AVX2__) and defined(ENABLE_GMP)
+	// index of the gather instruction
+	const __m256i vecoffset = _mm256_loadu_si256((__m256i *)offset);
+	while (que.size()) {
+		auto&& [row, col] = que.front();
+		que.pop_front();
+		std::uint32_t pos = (std::uint32_t)row * mapwidth + col;
+		if (countmap[pos] != queued) continue;
+		T real = real_min + real_unit * row;
+		T imag = imag_min + imag_unit * col;
+		countmap[row * mapwidth + col] = mandelbrot(real, imag, iter_max);
+		__m256i neighbour = _mm256_i32gather_epi32(
+			countmap + pos, vecoffset, 4);
+		__m256i is_init = _mm256_cmpeq_epi32(
+			neighbour, _mm256_set1_epi32(init));
+		__m256i is_queued = _mm256_cmpeq_epi32(
+			neighbour, _mm256_set1_epi32(queued));
+		__m256i is_unknown = _mm256_or_si256(
+			is_init, is_queued);
+		std::uint32_t is_init_shrink = _mm256_movemask_ps(
+			_mm256_castsi256_ps(is_init));
+		__m256i is_same = _mm256_cmpeq_epi32(
+			neighbour, _mm256_set1_epi32(countmap[pos]));
+		__m256i notbound = _mm256_or_si256(is_same, is_unknown);
+		std::uint32_t bound_shrink = ~_mm256_movemask_ps(
+			_mm256_castsi256_ps(notbound));
+		for (std::uint32_t i = 0; i < 8; i++) {
+			if (is_init_shrink & (1 << i)) {
+				if ((bound_shrink & bound_mask[j])) {
+					std::uint32_t p = pos + offset[i];
+					std::uint16_t r = p / mapwidth;
+					std::uint16_t c = p % mapwidth;
+					que.push_back({r, c});
+					countmap[p] = queued;
+				}
+			}
+		}
+	}
+#elif defined(ENABLE_AVX) and defined(__AVX2__) and not defined(ENABLE_GMP)
+	static_assert(std::is_same<T, double>::value);
+	const __m256i vecoffset = _mm256_loadu_si256((__m256i *)offset);
+	alignas(32) std::uint64_t store[4];
+	__m256d real, imag;
+	std::array<std::uint16_t, 4> rpos, cpos;
+
 	while (que.size()) {
 		std::uint32_t size = pop4elms(
 			que, countmap, mapwidth, mapheight,
@@ -260,7 +299,7 @@ void calc_submandelbrot_boundary(
 				_mm256_castsi256_ps(notbound));
 			for (std::uint32_t j = 0; j < 8; j++) {
 				if (is_init_shrink & (1 << j)) {
-					if ((bound_shrink & bound_mask[j])) {
+					if (bound_shrink & bound_mask[j]) {
 						std::uint32_t p = pos + offset[j];
 						std::uint16_t r = p / mapwidth;
 						std::uint16_t c = p % mapwidth;
@@ -275,50 +314,56 @@ void calc_submandelbrot_boundary(
 	while (que.size()) {
 		auto&& [row, col] = que.front();
 		que.pop_front();
+		std::uint32_t pos = (std::uint32_t)row * mapwidth + col;
 		if (countmap[row * mapwidth + col] >= 0) continue;
-		double real = real_min + real_unit * row;
-		double imag = imag_min + imag_unit * col;
+		T real = real_min + real_unit * row;
+		T imag = imag_min + imag_unit * col;
 		countmap[row * mapwidth + col] = mandelbrot(real, imag, iter_max);
-		bool upper = (countmap[(row - 1) * mapwidth + col] != init and countmap[row * mapwidth + col] != countmap[(row - 1) * mapwidth + col]);
-		bool lower = (countmap[(row + 1) * mapwidth + col] != init and countmap[row * mapwidth + col] != countmap[(row + 1) * mapwidth + col]);
-		bool left  = (countmap[row * mapwidth + col - 1] != init and countmap[row * mapwidth + col] != countmap[row * mapwidth + col - 1]);
-		bool right = (countmap[row * mapwidth + col + 1] != init and countmap[row * mapwidth + col] != countmap[row * mapwidth + col + 1]);
-		if (countmap[(row - 1) * mapwidth + col - 1] == init) {
-			if (upper or left) que.push_back({row - 1, col - 1});
+		std::int32_t neighbour[8];
+		for (std::int32_t i = 0; i < 8; i++) {
+			neighbour[i] = countmap[pos + offset[i]];
 		}
-		if (countmap[(row - 1) * mapwidth + col] == init) {
-			if (left or right) que.push_back({row - 1, col});
+		std::uint8_t is_init = 0;
+		for (std::int32_t i = 0; i < 8; i++) {
+			is_init |= (neighbour[i] == init ? 1 : 0) << i;
 		}
-		if (countmap[(row - 1) * mapwidth + col + 1] == init) {
-			if (upper or right) que.push_back({row - 1, col + 1});
+		std::uint8_t is_queued = 0;
+		for (std::int32_t i = 0; i < 8; i++) {
+			is_queued |= (neighbour[i] == queued ? 1 : 0) << i;
 		}
-		if (countmap[row * mapwidth + col - 1] == init) {
-			if (upper or lower) que.push_back({row, col - 1});
+		std::uint8_t is_same = 0;
+		for (std::int32_t i = 0; i < 8; i++) {
+			is_same |= (neighbour[i] == countmap[pos] ? 1 : 0) << i;
 		}
-		if (countmap[row * mapwidth + col + 1] == init) {
-			if (upper or lower) que.push_back({row, col + 1});
-		}
-		if (countmap[(row + 1) * mapwidth + col - 1] == init) {
-			if (left or lower) que.push_back({row + 1, col - 1});
-		}
-		if (countmap[(row + 1) * mapwidth + col] == init) {
-			if (left or right) que.push_back({row + 1, col});
-		}
-		if (countmap[(row + 1) * mapwidth + col + 1] == init) {
-			if (right or lower) que.push_back({row + 1, col + 1});
+		std::int8_t is_unknown = is_init | is_queued;
+		std::int8_t is_known = ~is_unknown;
+		std::int8_t is_bound = is_known & ~is_same;
+		for (std::uint32_t i = 0; i < 8; i++) {
+			if (is_init & (1 << i)) {
+				if (is_bound & bound_mask[i]) {
+					std::uint32_t p = pos + offset[i];
+					std::uint16_t r = p / mapwidth;
+					std::uint16_t c = p % mapwidth;
+					que.push_back({r, c});
+					countmap[p] = queued;
+				}
+			}
 		}
 	}
 #endif
 }
 
 // Compute the escape times linearly and return them as a vector
+template<typename T>
 std::vector<std::int32_t> calc_mandelbrot_linear(
-	const double real_min, const double real_unit,
-	const double imag_min, const double imag_unit,
+	const T& real_min, const T& real_unit,
+	const T& imag_min, const T& imag_unit,
 	const std::uint16_t len, const std::int32_t iter_max) {
 
 	std::vector<std::int32_t> result(len, init);
-#if defined(ENABLE_AVX) and defined(__AVX2__)
+
+#if defined(ENABLE_AVX) and defined(__AVX2__) and not defined(ENABLE_GMP)
+	static_assert(std::is_same<T, double>::value);
 	const std::uint32_t floored_len = len - (len % 4);
 	alignas(32) std::uint64_t store[4];
 	for (std::uint32_t i = 0; i < floored_len; i += 4) {
@@ -347,8 +392,8 @@ std::vector<std::int32_t> calc_mandelbrot_linear(
 	}
 #else
 	for (std::uint32_t i = 0; i < len; i++) {
-		double real = real_min + real_unit * i;
-		double imag = imag_min + imag_unit * i;
+		T real = real_min + real_unit * i;
+		T imag = imag_min + imag_unit * i;
 		result[i] = mandelbrot(real, imag, iter_max);
 	}
 #endif
@@ -356,16 +401,17 @@ std::vector<std::int32_t> calc_mandelbrot_linear(
 }
 
 // Compute Mandelbrot set escape time boundary
+template<typename T>
 std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
 	const std::uint16_t width, const std::uint16_t height,
-	const double real_min, const double real_max,
-	const double imag_min, const double imag_max,
+	const T& real_min, const T& real_max,
+	const T& imag_min, const T& imag_max,
 	const std::int32_t iter_max, const std::pair<std::uint16_t, std::uint16_t> split) {
 
-	const double real_range = real_max - real_min;
-	const double imag_range = imag_max - imag_min;
-	const double real_unit  = real_range / height;
-	const double imag_unit  = imag_range / width;
+	const T& real_range = real_max - real_min;
+	const T& imag_range = imag_max - imag_min;
+	const T& real_unit  = real_range / height;
+	const T& imag_unit  = imag_range / width;
 
 	const auto& [row_split, col_split] = split;
 
@@ -403,13 +449,13 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
 	// (real_max, imag_min)---(real_max, imag_max)
 #pragma omp parallel for
 	for (std::uint32_t i = 0; i <= row_split; i++) {
-		double real = real_min + real_unit * rows[i];
-		row_perimeters[i] = calc_mandelbrot_linear(real, 0, imag_min, imag_unit, width + 1, iter_max);
+		T real = real_min + real_unit * rows[i];
+		row_perimeters[i] = calc_mandelbrot_linear(real, T(0.0), imag_min, imag_unit, width + 1, iter_max);
 	}
 #pragma omp parallel for
 	for (std::uint32_t i = 0; i <= col_split; i++) {
-		double imag = imag_min + imag_unit * cols[i];
-		col_perimeters[i] = calc_mandelbrot_linear(real_min, real_unit, imag, 0, height + 1, iter_max);
+		T imag = imag_min + imag_unit * cols[i];
+		col_perimeters[i] = calc_mandelbrot_linear(real_min, real_unit, imag, T(0.0), height + 1, iter_max);
 	}
 	// Compute submandelbrot countmaps
 #pragma omp parallel for collapse(2)
@@ -421,8 +467,8 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
 				mapwidth, mapheight,
 				row_perimeters[prow].data() + cols[pcol], row_perimeters[prow + 1].data() + cols[pcol],
 				col_perimeters[pcol].data() + rows[prow], col_perimeters[pcol + 1].data() + rows[prow],
-				real_min + real_unit * rows[prow], real_unit,
-				imag_min + real_unit * cols[pcol], imag_unit, iter_max, countmaps[prow][pcol]);
+				T(real_min + real_unit * rows[prow]), real_unit,
+				T(imag_min + real_unit * cols[pcol]), imag_unit, iter_max, countmaps[prow][pcol]);
 		}
 	}
 
@@ -457,3 +503,16 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
 	}
 	return result;
 }
+
+#if defined(ENABLE_GMP)
+template std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary<mpf_class> (
+	const std::uint16_t, const std::uint16_t,
+	const mpf_class&, const mpf_class&, const mpf_class&, const mpf_class&,
+	const std::int32_t, const std::pair<std::uint16_t, std::uint16_t>);
+#endif
+
+template std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary<double> (
+	const std::uint16_t, const std::uint16_t,
+	const double&, const double&, const double&, const double&,
+	const std::int32_t, const std::pair<std::uint16_t, std::uint16_t>);
+
