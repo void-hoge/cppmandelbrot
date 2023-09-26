@@ -10,10 +10,17 @@ $ mkdir build
 $ cd build
 $ cmake ..
 $ make
-$ ../zoom.py mandel # Generate images included in samples.
+$ ./mandel > countmap
+$ ../saveimage.py countmap mandelbrot.png
 $ ./buddha > countmap
 $ ../saveimage.py countmap buddhabrot.png
 ```
+
+## Options
+- AVX2
+  - macro: `ENABLE_AVX` in `mandelbrot/mandelbrot.hpp`
+- GMP
+  - macro: `ENABLE_GMP` in `mandelbrot/mandelbrot.hpp`
 
 ## Algorithms
 ### Naive Algorithm
@@ -38,7 +45,7 @@ $ ../saveimage.py countmap buddhabrot.png
   - To achieve this, the rendering region is divided vertically and horizontally, and the above algorithm is executed.
 - This algorithm is implemented as `calc_mandelbrot_boundary`, `calc_submandelbrot_boundary` and `pop4elms`.
 
-## Buddhabrot
+### Buddhabrot
 - Buddhabrot is a probability distribution of the trajectories of points that do not belong to the Mandelbrot set.
 - To save computation for points belonging to the set, the Mandelbrot set is precomputed using the algorithm mentioned above.
   - Specifically, generate complex numbers randomly, and if the complex numbers at corners of that pixel belong to the Mandelbrot set, skip the computation.
