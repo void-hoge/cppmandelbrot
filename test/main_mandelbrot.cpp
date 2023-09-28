@@ -42,8 +42,9 @@ int main() {
 	const double imag_max       = imag_range / 2;
 	const std::int32_t iter_max = 100000;
 #endif
-	auto countmap = calc_mandelbrot_boundary(
-		width, height, real_min, real_max, imag_min, imag_max, iter_max, {1, 16});
+	region_manager region(width, height, 1, 16);
+	calc_mandelbrot_boundary(
+		width, height, real_min, real_max, imag_min, imag_max, iter_max, region);
 	std::cout << width << " " << height << std::endl;
-	std::cout << countmap << std::endl;
+	std::cout << region.countmap << std::endl;
 }

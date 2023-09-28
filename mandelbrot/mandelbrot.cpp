@@ -358,9 +358,12 @@ template<typename T>
 std::vector<std::int32_t> calc_mandelbrot_linear(
 	const T& real_min, const T& real_unit,
 	const T& imag_min, const T& imag_unit,
-	const std::uint16_t len, const std::int32_t iter_max) {
+	const std::uint16_t len, const std::int32_t iter_max,
+	std::vector<std::int32_t>& result) {
 
-	std::vector<std::int32_t> result(len, init);
+	for (auto&& val: result) {
+		val = init;
+	}
 
 #if defined(ENABLE_AVX) and defined(__AVX2__) and not defined(ENABLE_GMP)
 	static_assert(std::is_same<T, double>::value);
@@ -402,44 +405,27 @@ std::vector<std::int32_t> calc_mandelbrot_linear(
 
 // Compute Mandelbrot set escape time boundary
 template<typename T>
-std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
+void calc_mandelbrot_boundary(
 	const std::uint16_t width, const std::uint16_t height,
 	const T& real_min, const T& real_max,
 	const T& imag_min, const T& imag_max,
-	const std::int32_t iter_max, const std::pair<std::uint16_t, std::uint16_t> split) {
+	const std::int32_t iter_max, region_manager& region) {
 
 	const T& real_range = real_max - real_min;
 	const T& imag_range = imag_max - imag_min;
 	const T& real_unit  = real_range / height;
 	const T& imag_unit  = imag_range / width;
 
-	const auto& [row_split, col_split] = split;
+	const std::uint16_t row_split = region.row_split;
+	const std::uint16_t col_split = region.col_split;
 
-	std::vector<std::uint16_t> rows(row_split + 1), cols(col_split + 1);
-	rows[0] = 0;
-	for (std::uint32_t i = 1; i <= row_split; i++) {
-		rows[i] = rows[i - 1] + ((i < height % row_split) ? height / row_split + 1 : height / row_split);
-	}
-	cols[0] = 0;
-	for (std::uint32_t i = 1; i <= col_split; i++) {
-		cols[i] = cols[i - 1] + ((i < width % col_split) ? width / col_split + 1 : width / col_split);
-	}
-
-	std::vector<std::vector<std::int32_t *>> countmaps(
-		row_split, std::vector<std::int32_t *>(col_split, nullptr));
-	for (std::uint32_t prow = 0; prow < row_split; prow++) {
-		for (std::uint32_t pcol = 0; pcol < col_split; pcol++) {
-			std::uint16_t mapwidth = cols[pcol + 1] - cols[pcol] + 1;
-			std::uint16_t mapheight = rows[prow + 1] - rows[prow] + 1;
-			std::uint32_t maparea = mapwidth * mapheight;
-			countmaps[prow][pcol] = (std::int32_t *)std::aligned_alloc(32, sizeof(std::int32_t) * maparea);
-		}
-	}
-
-	std::vector<std::vector<std::int32_t>>
-		row_perimeters(row_split+1),
-		col_perimeters(col_split+1);
-
+    auto& rows = region.rows;
+	auto& cols = region.cols;
+	auto& row_perimeters = region.row_perimeters;
+	auto& col_perimeters = region.col_perimeters;
+	auto& subcountmaps = region.subcountmaps;
+	auto& countmap = region.countmap;
+	
 	auto start = std::chrono::system_clock::now();
 
 	// Compute the perimeters
@@ -450,12 +436,12 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
 #pragma omp parallel for
 	for (std::uint32_t i = 0; i <= row_split; i++) {
 		T real = real_min + real_unit * rows[i];
-		row_perimeters[i] = calc_mandelbrot_linear(real, T(0.0), imag_min, imag_unit, width + 1, iter_max);
+		calc_mandelbrot_linear(real, T(0.0), imag_min, imag_unit, width + 1, iter_max, row_perimeters[i]);
 	}
 #pragma omp parallel for
 	for (std::uint32_t i = 0; i <= col_split; i++) {
 		T imag = imag_min + imag_unit * cols[i];
-		col_perimeters[i] = calc_mandelbrot_linear(real_min, real_unit, imag, T(0.0), height + 1, iter_max);
+		calc_mandelbrot_linear(real_min, real_unit, imag, T(0.0), height + 1, iter_max, col_perimeters[i]);
 	}
 	// Compute submandelbrot countmaps
 #pragma omp parallel for collapse(2)
@@ -468,7 +454,7 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
 				row_perimeters[prow].data() + cols[pcol], row_perimeters[prow + 1].data() + cols[pcol],
 				col_perimeters[pcol].data() + rows[prow], col_perimeters[pcol + 1].data() + rows[prow],
 				T(real_min + real_unit * rows[prow]), real_unit,
-				T(imag_min + real_unit * cols[pcol]), imag_unit, iter_max, countmaps[prow][pcol]);
+				T(imag_min + real_unit * cols[pcol]), imag_unit, iter_max, subcountmaps[prow][pcol]);
 		}
 	}
 
@@ -477,8 +463,6 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
 	std::cerr << elapsed << std::endl;
 
 	// Store countmaps into 2-dimentional vector RESULT.
-	std::vector<std::vector<std::int32_t>> result(
-		height, std::vector<std::int32_t>(width));
 	for (std::uint32_t i = 0; i < row_split; i++) {
 		for (std::uint32_t j = 0; j < col_split; j++) {
 			for (std::uint32_t row = rows[i]; row < rows[i + 1]; row++) {
@@ -487,32 +471,99 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary(
 					std::uint32_t c = col - cols[j];
 					std::uint32_t w = cols[j + 1] - cols[j] + 1;
 #if defined(FILL_COUNTMAP)
-					if (countmaps[i][j][r * w + c] == init) {
-						result[row][col] = result[row][col - 1];
+					if (subcountmaps[i][j][r * w + c] == init) {
+						countmap[row][col] = countmap[row][col - 1];
 					}else {
-						result[row][col] = countmaps[i][j][r * w + c];
+						countmap[row][col] = subcountmaps[i][j][r * w + c];
 					}
 #else
-					result[row][col] = countmaps[i][j][r * w + c];
+					countmap[row][col] = subcountmaps[i][j][r * w + c];
 #endif
 				}
 			}
-			std::free(countmaps[i][j]);
-			countmaps[i][j] = nullptr;
 		}
 	}
-	return result;
+}
+
+region_manager::region_manager(
+	std::uint16_t width, std::uint16_t height,
+	std::uint16_t row_split, std::uint16_t col_split) :
+	width(width), height(height), row_split(row_split), col_split(col_split) {
+
+	this->countmap = std::vector<std::vector<std::int32_t>>(
+		this->height, std::vector<std::int32_t>(
+			this->width));
+	this->rows = std::vector<std::uint16_t>(this->row_split + 1);
+	this->rows[0] = 0;
+	for (std::uint32_t i = 1; i <= this->row_split; i++) {
+		this->rows[i] = this->rows[i - 1] + ((i < this->height % this->row_split) ? this->height / this->row_split + 1 : this->height / this->row_split);
+	}
+
+	this->cols = std::vector<std::uint16_t>(this->col_split + 1);
+	this->cols[0] = 0;
+	for (std::uint32_t i = 1; i <= this->col_split; i++) {
+		this->cols[i] = this->cols[i - 1] + ((i < this->width % this->col_split) ? this->width / this->col_split + 1 : this->width / this->col_split) ;
+	}
+
+	this->subcountmaps = std::vector<std::vector<std::int32_t *>>(
+		this->row_split, std::vector<std::int32_t *>(
+			this->col_split));
+	for (std::uint32_t row = 0; row < this->row_split; row++) {
+		for (std::uint32_t col = 0; col < this->col_split; col++) {
+			std::uint16_t mapheight = this->rows[row + 1] - this->rows[row] + 1;
+			std::uint16_t mapwidth = this->cols[col + 1] - this->cols[col] + 1;
+			std::uint32_t maparea = mapwidth * mapheight;
+			this->subcountmaps[row][col] = (std::int32_t *)std::aligned_alloc(32, sizeof(std::int32_t) * maparea);
+		}
+	}
+	this->row_perimeters = std::vector<std::vector<std::int32_t>>(
+		row_split + 1, std::vector<std::int32_t>(
+			width + 1));
+	this->col_perimeters = std::vector<std::vector<std::int32_t>>(
+		col_split + 1, std::vector<std::int32_t>(
+			height + 1));
+}
+
+region_manager::region_manager(const region_manager& region) :
+	width(region.width), height(region.height), row_split(region.row_split), col_split(region.col_split) {
+	this->countmap = region.countmap;
+	this->rows = region.rows;
+	this->cols = region.cols;
+	this->row_perimeters = region.row_perimeters;
+	this->col_perimeters = region.col_perimeters;
+	this->subcountmaps = std::vector<std::vector<std::int32_t *>>(
+		this->row_split, std::vector<std::int32_t *>(
+			this->col_split));
+	for (std::uint32_t row = 0; row < this->row_split; row++) {
+		for (std::uint32_t col = 0; col < this->col_split; col++) {
+			std::uint16_t mapheight = this->rows[row + 1] - this->rows[row] + 1;
+			std::uint16_t mapwidth = this->cols[col + 1] - this->cols[col] + 1;
+			std::uint32_t maparea = mapwidth * mapheight;
+			this->subcountmaps[row][col] = (std::int32_t *)std::aligned_alloc(32, sizeof(std::int32_t) * maparea);
+			for (std::uint32_t i = 0; i < maparea; i++) {
+				this->subcountmaps[row][col][i] = region.subcountmaps[row][col][i];
+			}
+		}
+	}
+}
+
+region_manager::~region_manager() {
+	for (std::uint32_t row = 0; row < this->row_split; row++) {
+		for (std::uint32_t col = 0; col < this->col_split; col++) {
+			std::free(this->subcountmaps[row][col]);
+		}
+	}
 }
 
 #if defined(ENABLE_GMP)
-template std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary<mpf_class> (
+template void calc_mandelbrot_boundary<mpf_class> (
 	const std::uint16_t, const std::uint16_t,
 	const mpf_class&, const mpf_class&, const mpf_class&, const mpf_class&,
-	const std::int32_t, const std::pair<std::uint16_t, std::uint16_t>);
+	const std::int32_t, region_manager&);
 #endif
 
-template std::vector<std::vector<std::int32_t>> calc_mandelbrot_boundary<double> (
+template void calc_mandelbrot_boundary<double> (
 	const std::uint16_t, const std::uint16_t,
 	const double&, const double&, const double&, const double&,
-	const std::int32_t, const std::pair<std::uint16_t, std::uint16_t>);
+	const std::int32_t, region_manager&);
 

@@ -87,7 +87,7 @@ std::vector<std::vector<std::int32_t>> calc_buddhabrot_countmap(
 	const double real_min, const double real_max,
 	const double imag_min, const double imag_max,
 	const std::int32_t iter_max, const std::uint32_t samples,
-	const std::uint16_t split) {
+	const std::uint16_t split, region_manager& region) {
 
 	std::cerr << samples << std::endl;
 
@@ -96,9 +96,7 @@ std::vector<std::vector<std::int32_t>> calc_buddhabrot_countmap(
 	const double imag_range = imag_max - imag_min;
 	const double imag_unit  = imag_range / width;
 
-	auto mandelbrot_countmap = calc_mandelbrot_boundary(
-		width + 1, height + 1, real_min, real_max + real_unit, imag_min, imag_max + imag_unit,
-		iter_max, {1, split});
+	auto& mandelbrot_countmap = region.countmap;
 
 	std::vector<std::vector<std::vector<std::int32_t>>> countmaps(split);
 
