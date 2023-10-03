@@ -58,10 +58,10 @@ std::vector<std::vector<std::int32_t>> calc_mandelbrot_countmap(
 
 	std::vector<std::vector<std::int32_t>> countmap(
 		height, std::vector<std::int32_t>(width, 0));
-	const double real_range = real_max - real_min;
-	const double imag_range = imag_max - imag_min;
-	const double real_unit  = real_range / height;
-	const double imag_unit  = imag_range / width;
+	const T real_range = real_max - real_min;
+	const T imag_range = imag_max - imag_min;
+	const T real_unit  = real_range / height;
+	const T imag_unit  = imag_range / width;
 	auto start = std::chrono::system_clock::now();
 #if defined(ENABLE_AVX) and defined(__AVX2__) and not defined(ENABLE_GMP)
 	static_assert(std::is_same<T, double>::value);
@@ -556,11 +556,21 @@ region_manager::~region_manager() {
 }
 
 #if defined(ENABLE_GMP)
+template std::vector<std::vector<std::int32_t>> calc_mandelbrot_countmap (
+	const std::uint16_t, const std::uint16_t,
+	const mpf_class&, const mpf_class&, const mpf_class&, const mpf_class&,
+	const std::int32_t);
+
 template void calc_mandelbrot_boundary<mpf_class> (
 	const std::uint16_t, const std::uint16_t,
 	const mpf_class&, const mpf_class&, const mpf_class&, const mpf_class&,
 	const std::int32_t, region_manager&);
 #endif
+
+template std::vector<std::vector<std::int32_t>> calc_mandelbrot_countmap (
+	const std::uint16_t, const std::uint16_t,
+	const double&, const double&, const double&, const double&,
+	const std::int32_t);
 
 template void calc_mandelbrot_boundary<double> (
 	const std::uint16_t, const std::uint16_t,
