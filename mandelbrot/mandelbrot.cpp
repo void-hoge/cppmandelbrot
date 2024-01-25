@@ -355,7 +355,7 @@ void calc_submandelbrot_boundary(
 
 // Compute the escape times linearly and return them as a vector
 template<typename T>
-std::vector<std::int32_t> calc_mandelbrot_linear(
+void calc_mandelbrot_linear(
 	const T& real_min, const T& real_unit,
 	const T& imag_min, const T& imag_unit,
 	const std::uint16_t len, const std::int32_t iter_max,
@@ -400,7 +400,6 @@ std::vector<std::int32_t> calc_mandelbrot_linear(
 		result[i] = mandelbrot(real, imag, iter_max);
 	}
 #endif
-	return result;
 }
 
 // Compute Mandelbrot set escape time boundary
