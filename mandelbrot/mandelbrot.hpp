@@ -24,7 +24,7 @@
 #include <gmpxx.h>
 #endif
 
-#define FILL_COUNTMAP
+// #define FILL_COUNTMAP
 
 constexpr int32_t INIT = -1;
 constexpr int32_t QUEUED = -2;
@@ -51,13 +51,29 @@ public:
 	~region_manager();
 };
 
+class nullbuffer : public std::streambuf {
+public:
+	int overflow(int c) override {
+		return c;
+	}
+};
+
+class nullstream : public std::ostream {
+public:
+	nullstream() : std::ostream(&nullbuff) {}
+private:
+	nullbuffer nullbuff;
+};
+
+static nullstream nullout;
+
 // naive algorithm
 template<typename T>
 std::vector<std::vector<int32_t>> calc_mandelbrot_countmap(
 	const uint16_t width, const uint16_t height,
 	const T& real_min, const T& real_max,
 	const T& imag_min, const T& imag_max,
-	const int32_t iter_max);
+	const int32_t iter_max, std::ostream& ost = std::cerr);
 
 // iteration boundary trace algorithm
 template<typename T>
@@ -65,4 +81,4 @@ void calc_mandelbrot_boundary(
 	const uint16_t width, const uint16_t height,
 	const T& real_min, const T& real_max,
 	const T& imag_min, const T& imag_max,
-	const int32_t iter_max, region_manager& region);
+	const int32_t iter_max, region_manager& region, std::ostream& ost = std::cerr);

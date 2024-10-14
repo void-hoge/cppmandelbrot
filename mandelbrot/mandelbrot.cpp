@@ -54,7 +54,7 @@ std::vector<std::vector<int32_t>> calc_mandelbrot_countmap(
 	const uint16_t width, const uint16_t height,
 	const T& real_min, const T& real_max,
 	const T& imag_min, const T& imag_max,
-	const int32_t iter_max) {
+	const int32_t iter_max, std::ostream& ost) {
 
 	std::vector<std::vector<int32_t>> countmap(
 		height, std::vector<int32_t>(width, 0));
@@ -96,7 +96,7 @@ std::vector<std::vector<int32_t>> calc_mandelbrot_countmap(
 #endif
 	auto end = std::chrono::system_clock::now();
 	double elapsed = (double)std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() / 1000;
-	std::cerr << elapsed << std::endl;
+	ost << elapsed << " ms" << std::endl;
 	return countmap;
 }
 
@@ -408,7 +408,7 @@ void calc_mandelbrot_boundary(
 	const uint16_t width, const uint16_t height,
 	const T& real_min, const T& real_max,
 	const T& imag_min, const T& imag_max,
-	const int32_t iter_max, region_manager& region) {
+	const int32_t iter_max, region_manager& region, std::ostream& ost) {
 
 	const T& real_range = real_max - real_min;
 	const T& imag_range = imag_max - imag_min;
@@ -459,7 +459,7 @@ void calc_mandelbrot_boundary(
 
 	auto end = std::chrono::system_clock::now();
 	double elapsed = (double)std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() / 1000;
-	std::cerr << elapsed << std::endl;
+	ost << elapsed << " ms" << std::endl;
 
 	// Store countmaps into 2-dimentional vector RESULT.
 	for (uint32_t i = 0; i < row_split; i++) {
@@ -558,21 +558,21 @@ region_manager::~region_manager() {
 template std::vector<std::vector<int32_t>> calc_mandelbrot_countmap (
 	const uint16_t, const uint16_t,
 	const mpf_class&, const mpf_class&, const mpf_class&, const mpf_class&,
-	const int32_t);
+	const int32_t, std::ostream&);
 
 template void calc_mandelbrot_boundary<mpf_class> (
 	const uint16_t, const uint16_t,
 	const mpf_class&, const mpf_class&, const mpf_class&, const mpf_class&,
-	const int32_t, region_manager&);
+	const int32_t, region_manager&, std::ostream&);
 #endif
 
 template std::vector<std::vector<int32_t>> calc_mandelbrot_countmap (
 	const uint16_t, const uint16_t,
 	const double&, const double&, const double&, const double&,
-	const int32_t);
+	const int32_t, std::ostream&);
 
 template void calc_mandelbrot_boundary<double> (
 	const uint16_t, const uint16_t,
 	const double&, const double&, const double&, const double&,
-	const int32_t, region_manager&);
+	const int32_t, region_manager&, std::ostream&);
 
