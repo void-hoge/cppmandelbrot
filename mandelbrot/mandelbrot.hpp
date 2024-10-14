@@ -17,7 +17,7 @@
 #include <immintrin.h>
 #endif
 
-#define ENABLE_GMP
+//#define ENABLE_GMP
 
 #if defined(ENABLE_GMP)
 #include <gmp.h>

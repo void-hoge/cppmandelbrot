@@ -15,3 +15,6 @@ target_link_libraries(mandel gmp gmpxx)
 
 add_executable(buddha test/main_buddhabrot.cpp mandelbrot/mandelbrot.cpp buddhabrot/buddhabrot.cpp)
 target_link_libraries(buddha gmp gmpxx)
+
+add_executable(autozoom test/main_autozoom.cpp autozoom/autozoom.cpp mandelbrot/mandelbrot.cpp buddhabrot/buddhabrot.cpp)
+target_link_libraries(autozoom gmp gmpxx)

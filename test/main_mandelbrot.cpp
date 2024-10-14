@@ -25,17 +25,18 @@ int main() {
 	const mpf_class imag_max       = imag_range / 2;
 	const std::int32_t iter_max = 100000;
 #else
-	// double zoom;
-	// std::cin >> zoom;
-	// const std::uint16_t height  = 1080 * 2;
-	// const std::uint16_t width   = 1920 * 2;
-	// const double real_center    = -1.4855241;
-	// const double real_min       = real_center - zoom;
-	// const double real_max       = real_center + zoom;
-	const std::uint16_t width   = 1920;
-	const std::uint16_t height  = 1080;
-	const double real_min       = -1.5;
-	const double real_max       = 0.5;
+	double zoom, real_center, imag_center;
+	std::cin >> zoom >> real_center >> imag_center;
+	const std::uint16_t height  = 1080 * 2;
+	const std::uint16_t width   = 1920 * 2;
+	const double real_min       = real_center - zoom;
+	const double real_max       = real_center + zoom;
+
+	// const std::uint16_t width   = 1920;
+	// const std::uint16_t height  = 1080;
+	// const double real_min       = -1.5;
+	// const double real_max       = 0.5;
+
 	const double real_range     = real_max - real_min;
 	const double imag_range     = real_range * ((double)width / height);
 	const double imag_min       = -imag_range / 2;
