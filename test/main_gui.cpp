@@ -1,8 +1,12 @@
 #include "../gui/gui.hpp"
 
 #include <sstream>
+#include <thread>
 
 int main(const int argc, const char *argv[]) {
+#if defined(ENABLE_GMP)
+	mpf_set_default_prec(1024);
+#endif
 	if (argc < 2) {
 		std::stringstream ss;
 		ss << "usage: " << argv[0] << " <resolution>" << std::endl;
@@ -17,6 +21,6 @@ int main(const int argc, const char *argv[]) {
 	}
 	int width = std::stoi(resolution.substr(0, xpos));
 	int height = std::stoi(resolution.substr(xpos + 1));
-	auto gui = MandelbrotGUI(width, height, std::cerr);
+	auto gui = MandelbrotGUI(width, height, std::thread::hardware_concurrency(), std::cerr);
 	gui.mainloop();
 }

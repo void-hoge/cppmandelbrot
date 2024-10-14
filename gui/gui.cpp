@@ -1,13 +1,19 @@
 #include "gui.hpp"
 
-MandelbrotGUI::MandelbrotGUI(const uint32_t width, const uint32_t height, std::ostream& ost) : buffersize({width, height}), region(width, height, 16, 1), ost(ost) {
+MandelbrotGUI::MandelbrotGUI(const uint32_t width, const uint32_t height, const uint32_t num_threads, std::ostream& ost) : buffersize({width, height}), region(width, height, num_threads, 1), ost(ost) {
 	this->buffer = std::vector<unsigned char>(width * height * 3, 0);
 	this->update = true;
 	this->windowsize = {width, height};
 
+#if defined(ENABLE_GMP)
+	this->center = {mpf_class(-0.5), mpf_class(0.0)};
+	this->range = {mpf_class(2.0), mpf_class(2.0) * ((double)width/ height)};
+#else
 	this->center = {-0.5, 0.0};
 	this->range = {2.0, 2.0 * ((double)width / height)};
-	this->iter_max = 1<<16;
+#endif
+	this->iter_max = 1<<10;
+	this->zoomexp = 1;
 
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -57,13 +63,22 @@ void MandelbrotGUI::handle_mouse_press(const SDL_Event& event) {
 		const double imag_relative = (double)event.button.x / this->windowsize.first;
 		const auto& [real_center, imag_center] = this->center;
 		const auto& [real_range, imag_range] = this->range;
-		const double real_min = real_center - real_range / 2;
-		const double imag_min = imag_center - imag_range / 2;
-		this->center = {real_min + real_relative * real_range, imag_min + imag_relative * imag_range};
+#if defined(ENABLE_GMP)
+		const mpf_class real_min = real_center - real_range / 2.0;
+		const mpf_class imag_min = imag_center - imag_range / 2.0;
+#else
+		const auto real_min = real_center - real_range / 2.0;
+		const auto imag_min = imag_center - imag_range / 2.0;
+#endif
+		this->center = {real_min + real_range * real_relative, imag_min + imag_range * imag_relative};
 		if (event.button.button == SDL_BUTTON_LEFT) {
-			this->range = {real_range / 2, imag_range / 2};
+			this->range = {real_range / 2.0, imag_range / 2.0};
+			this->iter_max += 1<<10;
+			this->zoomexp += 1;
 		}else {
-			this->range = {real_range * 2, imag_range * 2};
+			this->range = {real_range * 2.0, imag_range * 2.0};
+			this->iter_max = (this->iter_max == 1 << 10) ? (1 << 10) : (this->iter_max - (1 << 10));
+			this->zoomexp -= 1;
 		}
 	}
 }
@@ -71,17 +86,25 @@ void MandelbrotGUI::handle_mouse_press(const SDL_Event& event) {
 void MandelbrotGUI::render_mandelbrot() {
 	if (this->reload && this->update) {
 		const auto& [width, height] = this->buffersize;
-		const auto& [real_center, imag_center] = this->center;
-		const auto& [real_range, imag_range] = this->range;
-		const double real_min = real_center - real_range / 2;
-		const double real_max = real_center + real_range / 2;
-		const double imag_min = imag_center - imag_range / 2;
-		const double imag_max = imag_center + imag_range / 2;
+		const auto [real_center, imag_center] = this->center;
+		const auto [real_range, imag_range] = this->range;
+#if defined(ENABLE_GMP)
+		const mpf_class real_min = real_center - real_range / 2;
+		const mpf_class real_max = real_center + real_range / 2;
+		const mpf_class imag_min = imag_center - imag_range / 2;
+		const mpf_class imag_max = imag_center + imag_range / 2;
+#else
+		const auto real_min = real_center - real_range / 2;
+		const auto real_max = real_center + real_range / 2;
+		const auto imag_min = imag_center - imag_range / 2;
+		const auto imag_max = imag_center + imag_range / 2;
+#endif
+		this->ost << "rendering..." << std::endl;
 		calc_mandelbrot_boundary(width, height, real_min, real_max, imag_min, imag_max, iter_max, this->region, this->ost);
-		this->ost << std::fixed << std::setprecision(20) << "real, imag = " << this->center.first << ", " << this->center.second << std::endl;
+		this->ost << std::fixed << std::setprecision(std::ceil(this->zoomexp / std::log2(10)) + 5) << "real, imag = " << this->center.first << ", " << this->center.second << std::endl;
 		this->ost << "height (real) = " << this->range.first << std::endl;
+		this->ost << "iter_max = " << this->iter_max << std::endl;
 		this->ost << std::defaultfloat << std::setprecision(std::cout.precision());
-
 		for (int row = 0; row < this->buffersize.second; row++) {
 			for (int col = 0; col < this->buffersize.first; col++) {
 				auto grayscale = this->region.countmap[this->buffersize.second - row - 1][col] % 255;
@@ -108,6 +131,10 @@ void MandelbrotGUI::mainloop() {
 				this->handle_mouse_press(event);
 			}else if (event.type == SDL_WINDOWEVENT) {
 				this->handle_window_events(event);
+			}else if (event.type == SDL_KEYDOWN) {
+				if (event.key.keysym.sym == SDLK_q) {
+					return;
+				}
 			}
 		}
 		if (this->update) {

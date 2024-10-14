@@ -24,7 +24,7 @@
 #include <gmpxx.h>
 #endif
 
-// #define FILL_COUNTMAP
+#define FILL_COUNTMAP
 
 constexpr int32_t INIT = -1;
 constexpr int32_t QUEUED = -2;

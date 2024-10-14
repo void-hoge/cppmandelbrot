@@ -575,4 +575,3 @@ template void calc_mandelbrot_boundary<double> (
 	const uint16_t, const uint16_t,
 	const double&, const double&, const double&, const double&,
 	const int32_t, region_manager&, std::ostream&);
-

@@ -23,8 +23,5 @@ find_package(OpenGL REQUIRED)
 
 add_executable(gui test/main_gui.cpp gui/gui.cpp mandelbrot/mandelbrot.cpp)
 include_directories(${SDL2_INCLUDE_DIRS})
-target_link_libraries(gui
-        ${SDL2_LIBRARIES}
-        ${OPENGL_LIBRARIES}
-)
+target_link_libraries(gui ${SDL2_LIBRARIES} ${OPENGL_LIBRARIES} gmp gmpxx)
 
