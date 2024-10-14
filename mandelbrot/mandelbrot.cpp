@@ -418,7 +418,7 @@ void calc_mandelbrot_boundary(
 	const std::uint16_t row_split = region.row_split;
 	const std::uint16_t col_split = region.col_split;
 
-    auto& rows = region.rows;
+	auto& rows = region.rows;
 	auto& cols = region.cols;
 	auto& row_perimeters = region.row_perimeters;
 	auto& col_perimeters = region.col_perimeters;
@@ -486,8 +486,8 @@ void calc_mandelbrot_boundary(
 
 region_manager::region_manager(
 	std::uint16_t width, std::uint16_t height,
-	std::uint16_t row_split, std::uint16_t col_split) :
-	width(width), height(height), row_split(row_split), col_split(col_split) {
+	std::uint16_t col_split, std::uint16_t row_split) :
+	width(width), height(height), col_split(col_split), row_split(row_split) {
 
 	this->countmap = std::vector<std::vector<std::int32_t>>(
 		this->height, std::vector<std::int32_t>(
@@ -524,12 +524,12 @@ region_manager::region_manager(
 }
 
 region_manager::region_manager(const region_manager& region) :
-	width(region.width), height(region.height), row_split(region.row_split), col_split(region.col_split) {
+	width(region.width), height(region.height), col_split(region.col_split), row_split(region.row_split) {
 	this->countmap = region.countmap;
-	this->rows = region.rows;
 	this->cols = region.cols;
-	this->row_perimeters = region.row_perimeters;
+	this->rows = region.rows;
 	this->col_perimeters = region.col_perimeters;
+	this->row_perimeters = region.row_perimeters;
 	this->subcountmaps = std::vector<std::vector<std::int32_t *>>(
 		this->row_split, std::vector<std::int32_t *>(
 			this->col_split));

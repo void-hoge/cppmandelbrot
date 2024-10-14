@@ -17,7 +17,7 @@
 #include <immintrin.h>
 #endif
 
-#define ENABLE_GMP
+// #define ENABLE_GMP
 
 #if defined(ENABLE_GMP)
 #include <gmp.h>
@@ -33,18 +33,18 @@ class region_manager{
 public:
 	const std::uint16_t height;
 	const std::uint16_t width;
-	const std::uint16_t row_split;
 	const std::uint16_t col_split;
+	const std::uint16_t row_split;
 	std::vector<std::vector<std::int32_t>> countmap;
 	std::vector<std::vector<std::int32_t *>> subcountmaps;
-	std::vector<std::vector<std::int32_t>> row_perimeters;
 	std::vector<std::vector<std::int32_t>> col_perimeters;
-	std::vector<std::uint16_t> rows;
+	std::vector<std::vector<std::int32_t>> row_perimeters;
 	std::vector<std::uint16_t> cols;
+	std::vector<std::uint16_t> rows;
 
 	region_manager(
 		std::uint16_t width, std::uint16_t height,
-		std::uint16_t row_split = 1, std::uint16_t col_split = 1);
+		std::uint16_t col_split = 1, std::uint16_t row_split = 1);
 
 	region_manager(const region_manager& region);
 

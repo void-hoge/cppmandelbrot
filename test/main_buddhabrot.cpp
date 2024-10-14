@@ -22,7 +22,7 @@ int main() {
 	const double imag_min       = -imag_range / 2;
 	const double imag_max       = imag_range / 2;
 	const std::int32_t iter_max = 1000000;
-	region_manager region(width, height, 1, 16);
+	region_manager region(width, height, 16, 1);
 	calc_mandelbrot_boundary(
 		width, height, real_min, real_max, imag_min, imag_max, iter_max, region);
 	auto countmap = calc_buddhabrot_countmap(
