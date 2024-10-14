@@ -77,7 +77,7 @@ void MandelbrotGUI::handle_mouse_press(const SDL_Event& event) {
 			this->zoomexp += 1;
 		}else {
 			this->range = {real_range * 2.0, imag_range * 2.0};
-			this->iter_max = (this->iter_max == 1 << 10) ? (1 << 10) : (this->iter_max - (1 << 10));
+			this->iter_max = (this->iter_max == (1 << 10)) ? (1 << 10) : (this->iter_max - (1 << 10));
 			this->zoomexp -= 1;
 		}
 	}

@@ -11,7 +11,7 @@
 
 #include "../mandelbrot/mandelbrot.hpp"
 
-#define FRAME_RATE 60
+#define FRAME_RATE (60)
 #define FRAME_DELAY (1000 / FRAME_RATE)
 
 class MandelbrotGUI {
@@ -23,7 +23,6 @@ private:
 	SDL_Renderer *renderer;
 	bool update;
 	bool reload;
-
 
 	std::pair<uint32_t, uint32_t> windowsize;
 	const std::pair<uint32_t, uint32_t> buffersize;
