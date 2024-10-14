@@ -26,8 +26,8 @@
 
 #define FILL_COUNTMAP
 
-constexpr int32_t init = -1;
-constexpr int32_t queued = -2;
+constexpr int32_t INIT = -1;
+constexpr int32_t QUEUED = -2;
 
 class region_manager{
 public:

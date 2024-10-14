@@ -149,7 +149,7 @@ void calc_submandelbrot_boundary(
 	// Initialize COUNTMAP
 	for (uint32_t row = 0; row < mapheight; row++) {
 		for (uint32_t col = 0; col < mapwidth; col++) {
-			countmap[row * mapwidth + col] = init;
+			countmap[row * mapwidth + col] = INIT;
 		}
 	}
 
@@ -171,14 +171,14 @@ void calc_submandelbrot_boundary(
 		if (countmap[col] != countmap[col+1]) {
 			que.push_back({1, col});
 			que.push_back({1, col + 1});
-			countmap[mapwidth + col] = queued;
-			countmap[mapwidth + col + 1] = queued;
+			countmap[mapwidth + col] = QUEUED;
+			countmap[mapwidth + col + 1] = QUEUED;
 		}
 		if (countmap[height * mapwidth + col] != countmap[height * mapwidth + col + 1]) {
 			que.push_back({height - 1, col});
 			que.push_back({height - 1, col + 1});
-			countmap[(height - 1) * mapwidth + col]     = queued;
-			countmap[(height - 1) * mapwidth + col + 1] = queued;
+			countmap[(height - 1) * mapwidth + col]     = QUEUED;
+			countmap[(height - 1) * mapwidth + col + 1] = QUEUED;
 		}
 	}
 	// vertical
@@ -186,14 +186,14 @@ void calc_submandelbrot_boundary(
 		if (countmap[row * mapwidth] != countmap[(row + 1) * mapwidth]) {
 			que.push_back({row, 1});
 			que.push_back({row + 1, 1});
-			countmap[row * mapwidth + 1]       = queued;
-			countmap[(row + 1) * mapwidth + 1] = queued;
+			countmap[row * mapwidth + 1]       = QUEUED;
+			countmap[(row + 1) * mapwidth + 1] = QUEUED;
 		}
 		if (countmap[row * mapwidth + width] != countmap[(row + 1) * mapwidth + width]) {
 			que.push_back({row, width - 1});
 			que.push_back({row + 1, width - 1});
-			countmap[row * mapwidth + width - 1]       = queued;
-			countmap[(row + 1) * mapwidth + width - 1] = queued;
+			countmap[row * mapwidth + width - 1]       = QUEUED;
+			countmap[(row + 1) * mapwidth + width - 1] = QUEUED;
 		}
 	}
 	// offset of eight-neighbours
@@ -228,16 +228,16 @@ void calc_submandelbrot_boundary(
 		auto&& [row, col] = que.front();
 		que.pop_front();
 		uint32_t pos = (uint32_t)row * mapwidth + col;
-		if (countmap[pos] != queued) continue;
+		if (countmap[pos] != QUEUED) continue;
 		T real = real_min + real_unit * row;
 		T imag = imag_min + imag_unit * col;
 		countmap[row * mapwidth + col] = mandelbrot(real, imag, iter_max);
 		__m256i neighbour = _mm256_i32gather_epi32(
 			countmap + pos, vecoffset, 4);
 		__m256i is_init = _mm256_cmpeq_epi32(
-			neighbour, _mm256_set1_epi32(init));
+			neighbour, _mm256_set1_epi32(INIT));
 		__m256i is_queued = _mm256_cmpeq_epi32(
-			neighbour, _mm256_set1_epi32(queued));
+			neighbour, _mm256_set1_epi32(QUEUED));
 		__m256i is_unknown = _mm256_or_si256(
 			is_init, is_queued);
 		uint32_t is_init_shrink = _mm256_movemask_ps(
@@ -254,7 +254,7 @@ void calc_submandelbrot_boundary(
 					uint16_t r = p / mapwidth;
 					uint16_t c = p % mapwidth;
 					que.push_back({r, c});
-					countmap[p] = queued;
+					countmap[p] = QUEUED;
 				}
 			}
 		}
@@ -285,9 +285,9 @@ void calc_submandelbrot_boundary(
 			__m256i neighbour = _mm256_i32gather_epi32(
 				countmap + pos, vecoffset, 4);
 			__m256i is_init = _mm256_cmpeq_epi32(
-				neighbour, _mm256_set1_epi32(init));
+				neighbour, _mm256_set1_epi32(INIT));
 			__m256i is_queued = _mm256_cmpeq_epi32(
-				neighbour, _mm256_set1_epi32(queued));
+				neighbour, _mm256_set1_epi32(QUEUED));
 			__m256i is_unknown = _mm256_or_si256(
 				is_init, is_queued);
 			uint32_t is_init_shrink = _mm256_movemask_ps(
@@ -304,7 +304,7 @@ void calc_submandelbrot_boundary(
 						uint16_t r = p / mapwidth;
 						uint16_t c = p % mapwidth;
 						que.push_back({r, c});
-						countmap[p] = queued;
+						countmap[p] = QUEUED;
 					}
 				}
 			}
@@ -325,11 +325,11 @@ void calc_submandelbrot_boundary(
 		}
 		std::uint8_t is_init = 0;
 		for (int32_t i = 0; i < 8; i++) {
-			is_init |= (neighbour[i] == init ? 1 : 0) << i;
+			is_init |= (neighbour[i] == INIT ? 1 : 0) << i;
 		}
 		std::uint8_t is_queued = 0;
 		for (int32_t i = 0; i < 8; i++) {
-			is_queued |= (neighbour[i] == queued ? 1 : 0) << i;
+			is_queued |= (neighbour[i] == QUEUED ? 1 : 0) << i;
 		}
 		std::uint8_t is_same = 0;
 		for (int32_t i = 0; i < 8; i++) {
@@ -345,7 +345,7 @@ void calc_submandelbrot_boundary(
 					uint16_t r = p / mapwidth;
 					uint16_t c = p % mapwidth;
 					que.push_back({r, c});
-					countmap[p] = queued;
+					countmap[p] = QUEUED;
 				}
 			}
 		}
@@ -362,7 +362,7 @@ void calc_mandelbrot_linear(
 	std::vector<int32_t>& result) {
 
 	for (auto&& val: result) {
-		val = init;
+		val = INIT;
 	}
 
 #if defined(ENABLE_AVX) and defined(__AVX2__) and not defined(ENABLE_GMP)
@@ -470,7 +470,7 @@ void calc_mandelbrot_boundary(
 					uint32_t c = col - cols[j];
 					uint32_t w = cols[j + 1] - cols[j] + 1;
 #if defined(FILL_COUNTMAP)
-					if (subcountmaps[i][j][r * w + c] == init) {
+					if (subcountmaps[i][j][r * w + c] == INIT) {
 						countmap[row][col] = countmap[row][col - 1];
 					}else {
 						countmap[row][col] = subcountmaps[i][j][r * w + c];
