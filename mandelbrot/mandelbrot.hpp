@@ -26,25 +26,25 @@
 
 #define FILL_COUNTMAP
 
-constexpr std::int32_t init = -1;
-constexpr std::int32_t queued = -2;
+constexpr int32_t init = -1;
+constexpr int32_t queued = -2;
 
 class region_manager{
 public:
-	const std::uint16_t height;
-	const std::uint16_t width;
-	const std::uint16_t col_split;
-	const std::uint16_t row_split;
-	std::vector<std::vector<std::int32_t>> countmap;
-	std::vector<std::vector<std::int32_t *>> subcountmaps;
-	std::vector<std::vector<std::int32_t>> col_perimeters;
-	std::vector<std::vector<std::int32_t>> row_perimeters;
-	std::vector<std::uint16_t> cols;
-	std::vector<std::uint16_t> rows;
+	const uint16_t height;
+	const uint16_t width;
+	const uint16_t col_split;
+	const uint16_t row_split;
+	std::vector<std::vector<int32_t>> countmap;
+	std::vector<std::vector<int32_t *>> subcountmaps;
+	std::vector<std::vector<int32_t>> col_perimeters;
+	std::vector<std::vector<int32_t>> row_perimeters;
+	std::vector<uint16_t> cols;
+	std::vector<uint16_t> rows;
 
 	region_manager(
-		std::uint16_t width, std::uint16_t height,
-		std::uint16_t col_split = 1, std::uint16_t row_split = 1);
+		uint16_t width, uint16_t height,
+		uint16_t col_split = 1, uint16_t row_split = 1);
 
 	region_manager(const region_manager& region);
 
@@ -53,16 +53,16 @@ public:
 
 // naive algorithm
 template<typename T>
-std::vector<std::vector<std::int32_t>> calc_mandelbrot_countmap(
-	const std::uint16_t width, const std::uint16_t height,
+std::vector<std::vector<int32_t>> calc_mandelbrot_countmap(
+	const uint16_t width, const uint16_t height,
 	const T& real_min, const T& real_max,
 	const T& imag_min, const T& imag_max,
-	const std::int32_t iter_max);
+	const int32_t iter_max);
 
 // iteration boundary trace algorithm
 template<typename T>
 void calc_mandelbrot_boundary(
-	const std::uint16_t width, const std::uint16_t height,
+	const uint16_t width, const uint16_t height,
 	const T& real_min, const T& real_max,
 	const T& imag_min, const T& imag_max,
-	const std::int32_t iter_max, region_manager& region);
+	const int32_t iter_max, region_manager& region);

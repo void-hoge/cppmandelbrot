@@ -1,29 +1,29 @@
 #include "buddhabrot.hpp"
 
-std::uint16_t re2pos(const double real, const double real_min, const double real_unit) {
+uint16_t re2pos(const double real, const double real_min, const double real_unit) {
 	return (real - real_min) / real_unit;
 }
 
-std::uint16_t im2pos(const double imag, const double imag_min, const double imag_unit) {
+uint16_t im2pos(const double imag, const double imag_min, const double imag_unit) {
 	return (imag - imag_min) / imag_unit;
 }
 
-std::pair<std::uint16_t, std::uint16_t> complex2pos(
+std::pair<uint16_t, uint16_t> complex2pos(
 	const double real, const double imag,
 	const double real_min, const double real_unit,
 	const double imag_min, const double imag_unit) {
 	return {re2pos(real, real_min, real_unit), im2pos(imag, imag_min, imag_unit)};
 }
 
-std::int32_t buddhabrot(
+int32_t buddhabrot(
 	std::vector<double>& xtrace, std::vector<double>& ytrace,
-	const double real, const double imag, std::int32_t iter_max) {
+	const double real, const double imag, int32_t iter_max) {
 
 	double x = 0;
 	double y = 0;
 	double sqx = 0;
 	double sqy = 0;
-	for (std::int32_t i = 0; i < iter_max; i++) {
+	for (int32_t i = 0; i < iter_max; i++) {
 		double tx = sqx - sqy;
 		y = x * y * 2.0 + imag;
 		x = tx + real;
@@ -38,20 +38,20 @@ std::int32_t buddhabrot(
 	return iter_max;
 }
 
-std::vector<std::vector<std::int32_t>> buddhabrot_sampling(
-	const std::vector<std::vector<std::int32_t>>& mandelbrot_countmap,
-	const std::uint16_t width, const std::uint16_t height,
+std::vector<std::vector<int32_t>> buddhabrot_sampling(
+	const std::vector<std::vector<int32_t>>& mandelbrot_countmap,
+	const uint16_t width, const uint16_t height,
 	const double real_min, const double real_max,
 	const double imag_min, const double imag_max,
-	const std::int32_t iter_max, const std::uint32_t samples) {
+	const int32_t iter_max, const uint32_t samples) {
 
 	const double real_range = real_max - real_min;
 	const double real_unit  = real_range / height;
 	const double imag_range = imag_max - imag_min;
 	const double imag_unit  = imag_range / width;
 
-	std::vector<std::vector<std::int32_t>> countmap(
-		height, std::vector<std::int32_t>(
+	std::vector<std::vector<int32_t>> countmap(
+		height, std::vector<int32_t>(
 			width, 0));
 
 	std::random_device seed;
@@ -60,7 +60,7 @@ std::vector<std::vector<std::int32_t>> buddhabrot_sampling(
 	std::uniform_real_distribution<double> imag_dist(imag_min, imag_max);
 	std::vector<double> xtrace(iter_max);
 	std::vector<double> ytrace(iter_max);
-	for (std::uint32_t s = 0; s < samples; s++) {
+	for (uint32_t s = 0; s < samples; s++) {
 		double re = real_dist(mt);
 		double im = imag_dist(mt);
 		auto [r, c] = complex2pos(re, im, real_min, real_unit, imag_min, imag_unit);
@@ -68,12 +68,12 @@ std::vector<std::vector<std::int32_t>> buddhabrot_sampling(
 			mandelbrot_countmap[r + 1][c] == iter_max and mandelbrot_countmap[r + 1][c + 1] == iter_max) {
 			continue;
 		}
-		std::int32_t cnt = buddhabrot(xtrace, ytrace, re, im, iter_max);
+		int32_t cnt = buddhabrot(xtrace, ytrace, re, im, iter_max);
 		if (cnt == iter_max) continue;
 
-		for (std::int32_t i = 0; i < cnt; i++) {
-			std::uint16_t row = re2pos(xtrace[i], real_min, real_unit);
-			std::uint16_t col = im2pos(ytrace[i], imag_min, imag_unit);
+		for (int32_t i = 0; i < cnt; i++) {
+			uint16_t row = re2pos(xtrace[i], real_min, real_unit);
+			uint16_t col = im2pos(ytrace[i], imag_min, imag_unit);
 			if (row < height and col < width) {
 				countmap[row][col]++;
 			}
@@ -82,12 +82,12 @@ std::vector<std::vector<std::int32_t>> buddhabrot_sampling(
 	return countmap;
 }
 
-std::vector<std::vector<std::int32_t>> calc_buddhabrot_countmap(
-	const std::uint16_t width, const std::uint16_t height,
+std::vector<std::vector<int32_t>> calc_buddhabrot_countmap(
+	const uint16_t width, const uint16_t height,
 	const double real_min, const double real_max,
 	const double imag_min, const double imag_max,
-	const std::int32_t iter_max, const std::uint32_t samples,
-	const std::uint16_t split, region_manager& region) {
+	const int32_t iter_max, const uint32_t samples,
+	const uint16_t split, region_manager& region) {
 
 	std::cerr << samples << std::endl;
 
@@ -98,10 +98,10 @@ std::vector<std::vector<std::int32_t>> calc_buddhabrot_countmap(
 
 	auto& mandelbrot_countmap = region.countmap;
 
-	std::vector<std::vector<std::vector<std::int32_t>>> countmaps(split);
+	std::vector<std::vector<std::vector<int32_t>>> countmaps(split);
 
 #pragma omp parallel for
-	for (std::uint32_t i = 0; i < split; i++) {
+	for (uint32_t i = 0; i < split; i++) {
 		countmaps[i] = buddhabrot_sampling(
 			mandelbrot_countmap, width, height,
 			real_min, real_max, imag_min, imag_max, iter_max, samples / split);
@@ -109,12 +109,12 @@ std::vector<std::vector<std::int32_t>> calc_buddhabrot_countmap(
 
 	std::cerr << "sampling finished" << std::endl;
 
-	auto countmap = std::vector<std::vector<std::int32_t>>(
-		height, std::vector<std::int32_t>(
+	auto countmap = std::vector<std::vector<int32_t>>(
+		height, std::vector<int32_t>(
 			width, 0));
-	for (std::uint32_t i = 0; i < split; i++) {
-		for (std::uint32_t r = 0; r < height; r++) {
-			for (std::uint32_t c = 0; c < width; c++) {
+	for (uint32_t i = 0; i < split; i++) {
+		for (uint32_t r = 0; r < height; r++) {
+			for (uint32_t c = 0; c < width; c++) {
 #if defined(DOUBLECOUNT)
 				countmap[r][c] += countmaps[i][r][c] + countmaps[i][r][width - c - 1];
 #else
