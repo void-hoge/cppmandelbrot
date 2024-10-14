@@ -37,7 +37,7 @@ private:
 	std::pair<double, double> range;
 #endif
 	uint32_t iter_max;
-	double zoomexp;
+	uint32_t zoomexp;
 
 	void handle_window_events(const SDL_Event& event);
 	void handle_mouse_press(const SDL_Event& event);
