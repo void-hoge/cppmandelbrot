@@ -47,9 +47,7 @@ void MandelbrotGUI::handle_window_events(const SDL_Event& event) {
 	if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
 		this->update = true;
 		this->windowsize = {event.window.data1, event.window.data2};
-		glViewport(0, 0, this->windowsize.first, this->windowsize.second);
-		glPixelZoom((float)this->windowsize.first / this->buffersize.first,
-					(float)this->windowsize.second / this->buffersize.second);
+
 	}else if (event.window.event == SDL_WINDOWEVENT_EXPOSED) {
 		this->update = true;
 	}
@@ -115,7 +113,7 @@ void MandelbrotGUI::render_mandelbrot() {
 				this->buffer[(row * this->buffersize.first + col) * 3 + 2] = grayscale;
 			}
 		}
-		this->update = false;
+		this->update = true;
 		this->reload = false;
 	}
 }
@@ -123,32 +121,46 @@ void MandelbrotGUI::render_mandelbrot() {
 void MandelbrotGUI::mainloop() {
 	this->update = true;
 	this->reload = true;
-	while (true) {
+	std::thread thread;
+	bool running = true;
+	while (running) {
 		auto framestart = SDL_GetTicks();
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
 			if (event.type == SDL_QUIT) {
-				return;
+				running = false;
 			}else if (event.type == SDL_MOUSEBUTTONDOWN) {
 				this->handle_mouse_press(event);
 			}else if (event.type == SDL_WINDOWEVENT) {
 				this->handle_window_events(event);
 			}else if (event.type == SDL_KEYDOWN) {
 				if (event.key.keysym.sym == SDLK_q) {
-					return;
+					running = false;
 				}
 			}
 		}
+		if (this->reload and not thread.joinable()) {
+			thread = std::thread([&](){this->render_mandelbrot();});
+		}
 		if (this->update) {
+			glViewport(0, 0, this->windowsize.first, this->windowsize.second);
+			glPixelZoom((float)this->windowsize.first / this->buffersize.first,
+						(float)this->windowsize.second / this->buffersize.second);
 			glClear(GL_COLOR_BUFFER_BIT);
-			this->render_mandelbrot();
 			glDrawPixels(this->buffersize.first, this->buffersize.second, GL_RGB, GL_UNSIGNED_BYTE, this->buffer.data());
 			SDL_GL_SwapWindow(this->window);
 			this->update = false;
 		}
+		if (thread.joinable() and not this->reload) {
+			thread.join();
+		}
 		auto frametime = SDL_GetTicks() - framestart;
 		if (frametime < FRAME_DELAY) {
-			SDL_Delay(FRAME_DELAY - frametime);
+			std::this_thread::sleep_for(std::chrono::milliseconds(FRAME_DELAY - frametime));
 		}
+	}
+	if (thread.joinable()) {
+		this->ost << "waiting for the thread to finish..." << std::endl;
+		thread.join();
 	}
 }

@@ -5,6 +5,9 @@
 #include <iomanip>
 #include <vector>
 #include <cmath>
+#include <thread>
+#include <atomic>
+#include <chrono>
 
 #include <SDL2/SDL.h>
 #include <SDL_opengl.h>
@@ -21,8 +24,8 @@ private:
 	SDL_Window *window;
 	SDL_GLContext context;
 	SDL_Renderer *renderer;
-	bool update;
-	bool reload;
+	std::atomic<bool> update;
+	std::atomic<bool> reload;
 
 	std::pair<uint32_t, uint32_t> windowsize;
 	const std::pair<uint32_t, uint32_t> buffersize;
